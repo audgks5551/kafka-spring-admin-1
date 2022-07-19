@@ -15,7 +15,10 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
-import static org.assertj.core.api.Assertions.*;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @EmbeddedKafka(
@@ -36,6 +39,7 @@ class AppTest {
 
     @Test
     public void 토픽을_등록하지_않은_토픽정보_불러오기() {
+
         // given
         String notExistTopic = "notExistTopic";
 
@@ -65,25 +69,23 @@ class AppTest {
      *  1. autoflush와 flush사이에서 무엇이 좋은지 확인하기
      */
     @Test
-    public void 토픽에_데이터_하나_비동기전송() throws InterruptedException {
+    public void 토픽에_데이터_하나_비동기전송() {
         // given
         String topicName = "thing1";
         Integer key = 1;
         String value = "something";
-        final String[] savedResult = null;
+        Map<String, Object> resultMap = new HashMap<>();
 
         // when
         ListenableFuture<SendResult<Integer, String>> future = template.send(topicName, key, value);
-//        template.flush(); // flush 후 close 수행
-        Thread.sleep(3000);
+        template.flush();
+
         future.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
             public void onSuccess(SendResult<Integer, String> result) {
-                savedResult[0] = result.getRecordMetadata().topic();
-                savedResult[1] = result.getProducerRecord().key().toString();
-                savedResult[2] = result.getProducerRecord().value();
-                savedResult[3] = String.valueOf(result.getRecordMetadata().hasOffset());
-                savedResult[4] = String.valueOf(result.getRecordMetadata().timestamp());
+                resultMap.put("topic", result.getProducerRecord().topic());
+                resultMap.put("key", result.getProducerRecord().key());
+                resultMap.put("value", result.getProducerRecord().value());
             }
 
             /**
@@ -97,9 +99,8 @@ class AppTest {
         });
 
         // then
-        assertThat(savedResult[0]).isEqualTo(topicName);
-        assertThat(savedResult[1]).isEqualTo(key.toString());
-        assertThat(savedResult[2]).isEqualTo(value);
-        assertThat(savedResult[3]).isEqualTo(0);
+        assertThat(resultMap.get("topic")).isEqualTo(topicName);
+        assertThat(resultMap.get("key")).isEqualTo(key);
+        assertThat(resultMap.get("value")).isEqualTo(value);
     }
 }
